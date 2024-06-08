@@ -3,13 +3,16 @@ import numpy as np
 import utils
 
 class CEC:
-    def __init__(self, traj, Q = np.eye(2), q = 1, R = 0.01*np.eye(2), look_ahead_steps=50) -> None:
+    def __init__(self, traj, 
+                 Q = np.array([[2,1],[1,2]]), q = 2, 
+                 R = .05*np.eye(2), r = np.array([[0.2, 0.1],[0.1,0.2]]),
+                 look_ahead_steps=20) -> None:
         self.traj = traj
         self.Q = Q
         self.q = q
         self.R = R
+        self.r = r
         self.look_ahead_steps = look_ahead_steps
-        self.epsilon = 1e-4
 
     def car_next_state(self, time_step, cur_state, control):
         theta = cur_state[2]
@@ -43,10 +46,18 @@ class CEC:
         objective = 0
         for t in range(1, self.look_ahead_steps+1):
             error_state = states[t] - self.traj(cur_iter + t)
+            p = error_state[:2]
+            theta = error_state[2]
             objective += utils.GAMMA**t * (
-                casadi.mtimes(error_state[:2].T, casadi.mtimes(self.Q, error_state[:2]))
-                + self.q * (1 - casadi.cos(error_state[2]))**2
+                casadi.mtimes(p.T, casadi.mtimes(self.Q, p))
+                + self.q * (1 - casadi.cos(theta))**2
                 + casadi.mtimes(controls[:, t-1].T, casadi.mtimes(self.R, controls[:, t-1]))
+            )
+        
+        for t in range(self.look_ahead_steps-1):
+            delta_control = controls[:,t] - controls[:,t-1]
+            objective += utils.GAMMA**t * (
+               casadi.mtimes(delta_control.T, casadi.mtimes(self.r, delta_control))
             )
         
         # Define the constrains
@@ -55,21 +66,22 @@ class CEC:
 
         for t in range(1, self.look_ahead_steps+1):
             constrains.append(states[t])
-            lbg.extend([-3,-3,-casadi.pi])
-            ubg.extend([3,3,casadi.pi])
+            lbg.extend([-3,-3, -casadi.inf])
+            ubg.extend([3,3,casadi.inf])
         
             constrains.append(casadi.norm_2(states[t][:2] - casadi.vertcat(-2,-2)))
             lbg.append(0.5)
-            ubg.append(float('inf'))
+            ubg.append(casadi.inf)
             constrains.append(casadi.norm_2(states[t][:2] - casadi.vertcat(1,2)))
             lbg.append(0.5)
-            ubg.append(float('inf'))
+            ubg.append(casadi.inf)
+
         # Lower and upper bounds of variables
         lb_controls = np.tile(np.array([[utils.v_min], [utils.w_min]]), (1, self.look_ahead_steps))
         ub_controls = np.tile(np.array([[utils.v_max], [utils.w_max]]), (1, self.look_ahead_steps))
 
         # init guesses
-        init_guess_controls = np.zeros([2, self.look_ahead_steps])
+        init_guess_controls = np.tile(np.array([[0.1], [0]]), (1, self.look_ahead_steps))
 
         # optimization solver
         nlp = { 'x': casadi.reshape(controls, -1, 1),

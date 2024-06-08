@@ -10,8 +10,8 @@ from tqdm import tqdm
 # theta_init = np.pi / 2
 v_max = 1
 v_min = 0
-w_max = 2
-w_min = -2
+w_max = 1
+w_min = -1
 time_step = 0.5  # time between steps in seconds
 T = 100
 sim_time = 100  # simulation time

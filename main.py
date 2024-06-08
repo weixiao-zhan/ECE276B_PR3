@@ -9,13 +9,14 @@ def main():
     obstacles = np.array([[-2, -2, 0.5], [1, 2, 0.5]])
     # Params
     traj = utils.line
-    traj = utils.lissajous
     traj = utils.circle 
+    traj = utils.lissajous
     ref_traj = []
     error_trans = 0.0
     error_rot = 0.0
     car_states = []
     times = []
+    controls = []
     # Start main loop
     main_loop = time()  # return time in sec
     # Initialize state
@@ -40,10 +41,11 @@ def main():
         # TODO: Replace this simple controller with your own controller
         # control = utils.simple_controller(cur_state, traj(cur_iter))
         control = solver(cur_iter, cur_state)
+        controls.append(control)
         ################################################################
 
         # Apply control input
-        next_state = utils.car_next_state(utils.time_step, cur_state, control, noise=False)
+        next_state = utils.car_next_state(utils.time_step, cur_state, control, noise=True)
         # Update current state
         cur_state = next_state
         # Loop time
@@ -72,10 +74,18 @@ def main():
     print("Final error_rot: ", error_rot)
 
     # Visualization
+    # controls = np.array(controls)
+    # utils.plt.plot(range(start_iter, int(utils.sim_time / utils.time_step)),
+    #                controls[:,0], label='v')
+    # utils.plt.plot(range(start_iter, int(utils.sim_time / utils.time_step)),
+    #                controls[:,1], label='w')
+    # utils.plt.show()
+     
+
     ref_traj = np.array(ref_traj)
     car_states = np.array(car_states)
     times = np.array(times)
-    utils.visualize(car_states, ref_traj, obstacles, times, utils.time_step, save=False)
+    utils.visualize(car_states, ref_traj, obstacles, times, utils.time_step, save=True)
 
 if __name__ == "__main__":
     main()
