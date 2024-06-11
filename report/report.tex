@@ -3,7 +3,8 @@
 % The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
-\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{xcolor}
@@ -24,11 +25,112 @@
 \maketitle
 
 \section{Introduction}
+This project aims to develop a safe trajectory tracking policy 
+for a ground differential-drive robot operating 
+under a discrete periodic time horizon.
+The trajectory tracking problem is formulated as a 
+discounted infinite-horizon stochastic optimal control problem, 
+which is a subset of general Markov decision processes.
+
+The control policy must track a desired reference trajectory 
+while managing a noisy motion model and avoiding obstacles. 
+This project explores two primary approaches: 
+receding-horizon certainty equivalent control (CEC) and generalized policy iteration (GPI). 
+The performance of both methods is evaluated based on 
+tracking accuracy, computational complexity, and collision avoidance capabilities.
+
 
 \section{Problem Formulation}
+\subsection{Environment}
+The environment in which the robot operates is has following characteristics:
+The \(xy\)-plane is bounded within \([-3, 3] \times [-3, 3]\).
+There are two circular obstacles:
+Obstacle \( C_1 \) is centered at \((-2, -2)\) with a radius of 0.5.
+Obstacle \( C_2 \) is centered at \((1, 2)\) with a radius of 0.5.
+Denote the free space:
+\[ \mathcal{F} = [-3, 3]^2 \setminus (C_1 \cup C_2) \]
+
+The reference trajectory is a sequence of positions and orientations:
+\[ r_t \in [-3,3] \times [-3,3] \times [-\pi, pi)\]
+Note that reference trajectory can overlap with obstacles.
+And the control policy need to avoid the obstacles.
+
+\subsection{Motion Model}
+The motion model for the differential-drive robot is defined as follows. 
+The robot's state at time \( t \), denoted by 
+\( \mathbf{x}_t = (\mathbf{p}_t, \theta_t) \), 
+consists of its position \( \mathbf{p}_t \in [-3,3]^2 \) and orientation \( \theta_t \in [-\pi, \pi) \). 
+The control input \( \mathbf{u}_t = (v_t, \omega_t) \) 
+consists of the linear velocity \( v_t \in [0,1] \) and 
+angular velocity \( \omega_t \in [-1,1] \). 
+The discrete-time kinematic model, 
+derived from Euler discretization with a time interval \( \Delta > 0 \), is:
+
+\[
+\mathbf{x}_{t+1} = \mathbf{f}(\mathbf{x}_t, \mathbf{u}_t, \mathbf{w}_t) = \mathbf{x}_t + \mathbf{G}(\mathbf{x}_t) \mathbf{u}_t + \mathbf{w}_t
+\]
+where
+\[
+\mathbf{G}(\mathbf{x}_t) = \begin{bmatrix}
+\Delta \cos(\theta_t) & 0 \\
+\Delta \sin(\theta_t) & 0 \\
+0 & \Delta 
+\end{bmatrix}
+\]
+and motion noise \( \mathbf{w}_t \sim \mathcal{N}(0, \mathrm{diag}(\sigma)^2) \).
+
+\subsection{CEC}
+CEC is a suboptimal control scheme that applies, at each stage, 
+the control that would be optimal
+if the noise variables $w_t$ were fixed at their expected values. 
+The main advantage of CEC is that it reduces 
+a stochastic optimal control problem to a deterministic optimal control problem, 
+which can be solved more effectively. 
+
+Receding-horizon CEC, in addition, 
+approximates an infinite-horizon problem by repeatedly solving the following discounted finite-horizon
+deterministic optimal control problem at each time step
+
+\subsection{Non-linear Programming (NLP)}
+An NLP program written in the standard form can be solved by an NLP solver.
+\[
+\begin{aligned}
+&\min_{\mathbf{U}} & & c(\mathbf{U}, \mathbf{E}) \\
+&\text{subject to} & & \mathbf{U}_{\text{lb}} \leq \mathbf{U} \leq \mathbf{U}_{\text{ub}} \\
+& & & \mathbf{h}_{\text{lb}} \leq \mathbf{h}(\mathbf{U}, \mathbf{E}) \leq \mathbf{h}_{\text{ub}}
+\end{aligned}
+\]
+where \( \mathbf{U} = [\mathbf{u}_\tau^\top, \ldots, \mathbf{u}_{\tau+T-1}^\top]^\top \) and \( \mathbf{E} = [\mathbf{e}_\tau^\top, \ldots, \mathbf{e}_{\tau+T}^\top]^\top \).
+
+\subsection{GPI}
+General policy iteration is a powerful technique to approach 
+infinite horizon planing problem.
+GPI consists of two steps, policy evaluation, which given a policy finds it V function,
+and policy improvements.
+
+\subsection{Q-value iteration}
+Q-value iteration is a variation of general policy iteration.
+Its routines is shown in Algorithm \ref{algo:gpi}.
+\begin{algorithm}
+    \caption{GPI with Q-value iteration}
+    \label{algo:gpi}
+    \begin{algorithmic}[1] % The number [1] enables line numbering
+    \While{$\delta Q > \epsilon$}
+        \Comment Q-value iteration
+        \State $Q(x,u) = l(x,u) + \gamma \mathbb{E}_{x'\sim p_f}\left[\min_u Q(x', u)\right], \forall x, u$
+        % Your loop code here
+    \EndWhile
+    \State $\pi(x) \leftarrow \arg\min_u Q(x, u), \forall x$
+    \Comment extract policy
+    \end{algorithmic}
+\end{algorithm}
+
 
 \section{Technical Approach}
 
+\subsection{CEC: NLP Formulation}
+
+\subsection{GPI: GPU Batch Q-value iteration}
 \section{Results}
 
 \end{document}
