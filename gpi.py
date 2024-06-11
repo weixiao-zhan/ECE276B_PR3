@@ -414,7 +414,7 @@ class GPI:
             # print('next_state_V', next_state_V.shape, self.check_nan(next_state_V))
             next_state_returns = torch.einsum('aijkl,aijkl->ijkl', next_state_V, next_state_prob)
             # print('new_state_returns', next_state_returns.shape, self.check_nan(next_state_returns))
-            new_Q = stage_cost + next_state_returns
+            new_Q = stage_cost + self.config.gamma * next_state_returns
             
             # if eval_iter % 10 == 0:
             delta = torch.norm(self.Q[
