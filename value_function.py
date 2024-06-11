@@ -52,19 +52,19 @@ class ValueFunction:
         raise NotImplementedError
 
 
-class GridValueFunction(ValueFunction):
-    """
-    Grid-based value function
-    """
-    # TODO: your implementation
-    raise NotImplementedError
+# class GridValueFunction(ValueFunction):
+#     """
+#     Grid-based value function
+#     """
+#     # TODO: your implementation
+#     raise NotImplementedError
 
 
-class FeatureValueFunction(ValueFunction):
-    """
-    Feature-based value function
-    """
-    # TODO: your implementation
-    raise NotImplementedError
+# class FeatureValueFunction(ValueFunction):
+#     """
+#     Feature-based value function
+#     """
+#     # TODO: your implementation
+#     raise NotImplementedError
 
 

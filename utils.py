@@ -38,7 +38,7 @@ def lissajous(k):
     return np.array([xref, yref, thetaref])
 
 def circle(k):
-    return np.array([2*np.cos(k/100*np.pi), 2*np.sin(k/100*np.pi), k/100*np.pi+np.pi/2])
+    return np.array([2*np.cos(k/50*np.pi), 2*np.sin(k/50*np.pi), k/50*np.pi+np.pi/2])
 def line(k):
     return np.array([2-k/50, 2-k/50, -3*np.pi/4])
 # This function implements a simple P controller
