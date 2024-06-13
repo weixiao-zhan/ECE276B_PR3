@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 from time import time
 from tqdm import tqdm
-
-# x_init = 1.5
-# y_init = 0.0
-# theta_init = np.pi / 2
+from functools import lru_cache
+x_init = 1.5
+y_init = 0.0
+theta_init = np.pi / 2
 v_max = 1
 v_min = 0
 w_max = 1
@@ -22,6 +22,7 @@ CONTROL_DIM = 2
 GAMMA = 0.9
 
 # This function returns the reference point at time step k
+@lru_cache
 def lissajous(k):
     xref_start = 0
     yref_start = 0
@@ -36,10 +37,13 @@ def lissajous(k):
     v = [A * a * np.cos(a * k * time_step + delta), B * b * np.cos(b * k * time_step)]
     thetaref = np.arctan2(v[1], v[0])
     return np.array([xref, yref, thetaref])
-
+@lru_cache
 def circle(k):
     return np.array([2*np.cos(k/50*np.pi), 2*np.sin(k/50*np.pi), k/50*np.pi+np.pi/2])
+@lru_cache
 def line(k):
+    if k > T:
+        k = T
     return np.array([2-k/50, 2-k/50, -3*np.pi/4])
 # This function implements a simple P controller
 def simple_controller(cur_state, ref_state):
@@ -167,6 +171,11 @@ def visualize(car_states, ref_traj, obstacles, t, time_step, save=False):
 
     if save == True:
         sim.save("./fig/animation" + str(time()) + ".gif", writer="ffmpeg", fps=15)
+        full_trajectory_path = "./fig/trajectory" + str(time()) + ".png"
+        x_full = car_states[:, 0]
+        y_full = car_states[:, 1]
+        path.set_data(x_full, y_full)
+        fig.savefig(full_trajectory_path)
 
     return
 

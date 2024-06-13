@@ -25,8 +25,6 @@ def main():
     # Start main loop
     main_loop = time()  # return time in sec
     # Initialize state
-
-    # solver = cec.CEC(traj)
     cfg = gpi.GpiConfig(
         traj,
         device,
@@ -36,20 +34,23 @@ def main():
         nt=utils.T,
         nx=6*5+1,
         ny=6*5+1,
-        nth=2*9+1,
-        nv=9+1,
+        nth=2*4+1,
+        nv=5+1,
         nw=2*4+1,
-        Q=torch.tensor([[1,1],[1,1]], device=device, dtype=dtype),
-        q=2,
-        R=torch.tensor([[0.05,0],[0,0.05]], device=device, dtype=dtype),
+        num_neighbors=1,
+        Q=torch.tensor([[5,0],[0,5]], device=device, dtype=dtype),
+        q=10,
+        R=torch.tensor([[1,0],[0,1]], device=device, dtype=dtype),
         gamma=utils.GAMMA,
-        num_iters=8,
-        num_eval_iters=1)
-    solver = gpi.GPI(cfg)
-
+        num_iters=200,
+        delta=10)
+    # solver = gpi.GPI(cfg)
+    solver = cec.CEC(traj)
+    
     # Main loop
     start_iter = 0
-    cur_state = traj(start_iter) # np.array([utils.x_init, utils.y_init, utils.theta_init])
+    cur_state = traj(start_iter)
+    cur_state = np.array([utils.x_init, utils.y_init, utils.theta_init]) # 
     bar = tqdm.tqdm(range(start_iter, int(utils.sim_time / utils.time_step)))
     for cur_iter in bar:
         t1 = time()
@@ -63,7 +64,7 @@ def main():
         ################################################################
         # Generate control input
         # TODO: Replace this simple controller with your own controller
-        control = utils.simple_controller(cur_state, traj(cur_iter))
+        # control = utils.simple_controller(cur_state, traj(cur_iter))
         control = solver(cur_iter, cur_state)
         ###############################################################
 

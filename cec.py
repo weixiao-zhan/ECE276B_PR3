@@ -4,9 +4,9 @@ import utils
 
 class CEC:
     def __init__(self, traj, 
-                 Q = np.array([[2,1],[1,2]]), q = 2, 
-                 R = .05*np.eye(2), r = np.array([[0.2, 0.1],[0.1,0.2]]),
-                 look_ahead_steps=20) -> None:
+                 Q = casadi.MX(np.array([[2,0],[0,2]])), q = 2, 
+                 R = 0.05*casadi.MX(np.eye(2)), r = 0.05*np.eye(2),
+                 look_ahead_steps=5) -> None:
         self.traj = traj
         self.Q = Q
         self.q = q
@@ -14,16 +14,16 @@ class CEC:
         self.r = r
         self.look_ahead_steps = look_ahead_steps
 
-    def car_next_state(self, time_step, cur_state, control):
+    def car_next_state(self, cur_state, control):
         theta = cur_state[2]
         G = casadi.vertcat(
-            casadi.horzcat(time_step * casadi.cos(theta), 0),
-            casadi.horzcat(time_step * casadi.sin(theta), 0),
-            casadi.horzcat(0, time_step)
+            casadi.horzcat(utils.time_step * casadi.cos(theta), 0),
+            casadi.horzcat(utils.time_step * casadi.sin(theta), 0),
+            casadi.horzcat(0, utils.time_step)
         )
-        f =  casadi.mtimes(G, control)
+        f =  G @ control
         return cur_state + f
-        
+
     def __call__(self, cur_iter: int, cur_state: np.ndarray) -> np.ndarray:
         """
         Given the time step, current state, and reference state, return the control input.
@@ -39,7 +39,7 @@ class CEC:
         # Propagate states using the motion model
         states = [cur_state]
         for t in range(self.look_ahead_steps):
-            next_state = self.car_next_state(utils.time_step, states[-1], controls[:, t])
+            next_state = self.car_next_state(states[-1], controls[:, t])
             states.append(next_state)
 
         # objective
@@ -49,9 +49,9 @@ class CEC:
             p = error_state[:2]
             theta = error_state[2]
             objective += utils.GAMMA**t * (
-                casadi.mtimes(p.T, casadi.mtimes(self.Q, p))
+                p.T @ self.Q @ p
                 + self.q * (1 - casadi.cos(theta))**2
-                + casadi.mtimes(controls[:, t-1].T, casadi.mtimes(self.R, controls[:, t-1]))
+                + controls[:, t-1].T @ self.R @ controls[:, t-1]
             )
         
         for t in range(self.look_ahead_steps-1):
@@ -65,9 +65,9 @@ class CEC:
         lbg, ubg = [], []
 
         for t in range(1, self.look_ahead_steps+1):
-            constrains.append(states[t])
-            lbg.extend([-3,-3, -casadi.inf])
-            ubg.extend([3,3,casadi.inf])
+            constrains.append(states[t][:2])
+            lbg.extend([-3,-3])
+            ubg.extend([3,3])
         
             constrains.append(casadi.norm_2(states[t][:2] - casadi.vertcat(-2,-2)))
             lbg.append(0.5)
@@ -77,11 +77,13 @@ class CEC:
             ubg.append(casadi.inf)
 
         # Lower and upper bounds of variables
-        lb_controls = np.tile(np.array([[utils.v_min], [utils.w_min]]), (1, self.look_ahead_steps))
-        ub_controls = np.tile(np.array([[utils.v_max], [utils.w_max]]), (1, self.look_ahead_steps))
+        lb_controls = [utils.v_min, utils.w_min]*self.look_ahead_steps #+ [utils.w_min]*self.look_ahead_steps
+        ub_controls = [utils.v_max, utils.w_max]*self.look_ahead_steps #+ [utils.w_max]*self.look_ahead_steps 
+        # lb_controls = np.tile(np.array([[utils.v_min], [utils.w_min]]), (1, self.look_ahead_steps)).T.reshape(-1)
+        # ub_controls = np.tile(np.array([[utils.v_max], [utils.w_max]]), (1, self.look_ahead_steps)).T.reshape(-1)
 
         # init guesses
-        init_guess_controls = np.tile(np.array([[0.1], [0]]), (1, self.look_ahead_steps))
+        init_guess_controls = [0.2, 0.01]*self.look_ahead_steps
 
         # optimization solver
         nlp = { 'x': casadi.reshape(controls, -1, 1),
@@ -95,16 +97,14 @@ class CEC:
         }
         solver = casadi.nlpsol("S", "ipopt", nlp, opts)
         sol = solver(
-            # x0 =init_guess_controls.reshape(-1),  # TODO: initial guess
-            lbx=lb_controls.reshape(-1), # TODO: lower bound on optimization variables
-            ubx=ub_controls.reshape(-1), # TODO: upper bound on optimization variables
+            x0 =init_guess_controls,  # TODO: initial guess
+            lbx=lb_controls, # TODO: lower bound on optimization variables
+            ubx=ub_controls, # TODO: upper bound on optimization variables
             lbg=lbg, # TODO: lower bound on optimization constraints
             ubg=ubg, # TODO: upper bound on optimization constraints
         )
         x = sol["x"]  # get the solution
-        x_np = np.array(x.full())
-        control_solution = x_np.reshape((utils.CONTROL_DIM, self.look_ahead_steps))
-        return control_solution[:, 0]
+        return np.array(x)[:2].squeeze()
 
 if __name__ == "__main__":
     solver = CEC(utils.lissajous)
