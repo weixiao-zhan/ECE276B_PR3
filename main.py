@@ -45,15 +45,15 @@ def main(which_solver):
             nt=utils.T,
             nx=6*5+1,
             ny=6*5+1,
-            nth=2*9+1,
+            nth=2*5+1,
             nv=5+1,
-            nw=2*10+1,
+            nw=2*5+1,
             num_neighbors=1,
             Q=torch.tensor([[1,0],[0,1]], device=device, dtype=dtype),
             q=1,
             R=0.05*torch.tensor([[1,0],[0,1]], device=device, dtype=dtype),
             gamma=utils.GAMMA,
-            num_iters=200,
+            num_iters=100,
             delta=5)
         solver = gpi.GPI(cfg)
     else:
@@ -109,14 +109,6 @@ def main(which_solver):
     print("Final error_rot: ", error_rot)
 
     # Visualization
-    # controls = np.array(controls)
-    # utils.plt.plot(range(start_iter, int(utils.sim_time / utils.time_step)),
-    #                controls[:,0], label='v')
-    # utils.plt.plot(range(start_iter, int(utils.sim_time / utils.time_step)),
-    #                controls[:,1], label='w')
-    # utils.plt.show()
-     
-
     ref_traj = np.array(ref_traj)
     car_states = np.array(car_states)
     times = np.array(times)
