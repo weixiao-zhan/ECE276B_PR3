@@ -2,15 +2,10 @@ from time import time
 import numpy as np
 import torch
 import utils
-import cec,gpi
+import cec, gpi
 import tqdm
 
-def main():
-    device = torch.device("cuda") if torch.cuda.is_available() \
-        else torch.device("mps") if torch.backends.mps.is_available() \
-        else torch.device("cpu")
-    dtype = torch.float32
-
+def main(which_solver):
     # Obstacles in the environment
     obstacles = np.array([[-2, -2, 0.5], [1, 2, 0.5]])
     # Params
@@ -25,28 +20,44 @@ def main():
     # Start main loop
     main_loop = time()  # return time in sec
     # Initialize state
-    cfg = gpi.GpiConfig(
-        traj,
-        device,
-        dtype,
-        epsilon=1e-1,
-        obstacles=torch.tensor([[-2, -2, 0.5], [1, 2, 0.5]], device=device, dtype=dtype),
-        nt=utils.T,
-        nx=6*5+1,
-        ny=6*5+1,
-        nth=2*4+1,
-        nv=5+1,
-        nw=2*4+1,
-        num_neighbors=1,
-        Q=torch.tensor([[5,0],[0,5]], device=device, dtype=dtype),
-        q=10,
-        R=torch.tensor([[1,0],[0,1]], device=device, dtype=dtype),
-        gamma=utils.GAMMA,
-        num_iters=200,
-        delta=10)
-    # solver = gpi.GPI(cfg)
-    solver = cec.CEC(traj)
-    
+
+    if which_solver == "cec":
+        solver = cec.CEC(
+            traj,
+            Q = cec.casadi.MX(np.array([[2,0],[0,2]])),
+            q = 2,
+            R = 0.05*cec.casadi.MX(np.eye(2)),
+            r = 0.05*np.eye(2),
+            look_ahead_steps=5
+        )
+    elif which_solver == "gpi":
+        device = torch.device("cuda") if torch.cuda.is_available() \
+        else torch.device("mps") if torch.backends.mps.is_available() \
+        else torch.device("cpu")
+        print("using", device)
+        dtype = torch.float32
+        cfg = gpi.GpiConfig(
+            traj,
+            device,
+            dtype,
+            torch.int32,
+            obstacles=torch.tensor(obstacles, device=device, dtype=dtype),
+            nt=utils.T,
+            nx=6*5+1,
+            ny=6*5+1,
+            nth=2*9+1,
+            nv=5+1,
+            nw=2*10+1,
+            num_neighbors=1,
+            Q=torch.tensor([[1,0],[0,1]], device=device, dtype=dtype),
+            q=1,
+            R=0.05*torch.tensor([[1,0],[0,1]], device=device, dtype=dtype),
+            gamma=utils.GAMMA,
+            num_iters=200,
+            delta=5)
+        solver = gpi.GPI(cfg)
+    else:
+        raise NotImplemented
     # Main loop
     start_iter = 0
     cur_state = traj(start_iter)
@@ -112,5 +123,5 @@ def main():
     utils.visualize(car_states, ref_traj, obstacles, times, utils.time_step, save=True)
 
 if __name__ == "__main__":
-    main()
+    main("gpi")
 
