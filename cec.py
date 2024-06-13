@@ -4,9 +4,9 @@ import utils
 
 class CEC:
     def __init__(self, traj, 
-                 Q = casadi.MX(np.array([[2,0],[0,2]])), q = 2, 
-                 R = 0.05*casadi.MX(np.eye(2)), r = 0.05*np.eye(2),
-                 look_ahead_steps=5) -> None:
+                 Q , q , 
+                 R, r ,
+                 look_ahead_steps) -> None:
         self.traj = traj
         self.Q = Q
         self.q = q
@@ -107,5 +107,12 @@ class CEC:
         return np.array(x)[:2].squeeze()
 
 if __name__ == "__main__":
-    solver = CEC(utils.lissajous)
+    solver = CEC(
+        utils.lissajous,
+        Q = casadi.MX(np.array([[2,0],[0,2]])),
+        q = 2,
+        R = 0.05*casadi.MX(np.eye(2)),
+        r = 0.05*np.eye(2),
+        look_ahead_steps=5
+    )
     solver(0, utils.lissajous(0))
