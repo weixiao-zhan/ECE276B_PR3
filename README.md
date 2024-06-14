@@ -6,6 +6,19 @@ In this assignment, you will implement a controller for a car robot to track a t
 ## Dependencies
 This starter code was tested with: python 3.10, matplotlib 3.9.0, and numpy 1.26.4.
 
+## usage
+To run CEC:
+```
+python3 main.py cec
+```
+
+To run GPI:
+```
+python3 main.py gpi
+```
+Note: GPI uses batch distribution, which is not supported by Apple MPS. Not sure if Torch-CPU supports. 
+Prefer using Torch-CUDA.
+
 ## Starter code
 ### 1. main.py
 This file contains examples of how to generate control inputs from a simple P controller and apply the control on a car model. This simple controller does not work well. Your task is to replace the P controller with your own controller using CEC and GPI as described in the project statement.

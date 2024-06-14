@@ -4,6 +4,7 @@ import torch
 import utils
 import cec, gpi
 import tqdm
+import sys
 
 def main(which_solver):
     # Obstacles in the environment
@@ -115,5 +116,14 @@ def main(which_solver):
     utils.visualize(car_states, ref_traj, obstacles, times, utils.time_step, save=True)
 
 if __name__ == "__main__":
-    main("gpi")
+    if len(sys.argv) != 2:
+        print("Usage: python3 main.py <gpi|cec>")
+        sys.exit(1)
+    
+    input_value = sys.argv[1]
+    if input_value not in ["gpi", "cec"]:
+        print("Invalid input. Please use 'gpi' or 'cec'.")
+        sys.exit(1)
+    
+    main(input_value)
 
