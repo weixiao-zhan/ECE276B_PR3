@@ -1,4 +1,5 @@
 __pycache__
 report/*
 !report/report.tex
+!report/report.pdf
 *.DS_Store

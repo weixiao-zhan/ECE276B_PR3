@@ -9,7 +9,7 @@
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{subcaption}
-\usepackage{animate}
+\usepackage{hyperref}
 
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
@@ -27,12 +27,11 @@
 
 \section{Introduction}
 This project aims to develop a safe trajectory tracking policy 
-for a ground differential-drive robot operating 
-under a discrete periodic time horizon.
+for a ground differential-drive robot.
 The trajectory tracking problem is formulated as a 
 discounted infinite-horizon stochastic optimal control problem.
-The control policy must track a desired reference trajectory 
-while managing a noisy motion model and avoiding obstacles. 
+The control policy must track a periodic reference trajectory 
+while managing motion model noise and avoiding obstacles. 
 
 This project explores two primary approaches: 
 receding-horizon certainty equivalent control (CEC) and 
@@ -43,29 +42,27 @@ tracking accuracy, computational complexity, and collision avoidance capabilitie
 
 \section{Problem Formulation}
 \subsection{Environment}
-The environment in which the robot operates has following characteristics:
-The \(xy\)-plane is bounded within \([-3, 3] \times [-3, 3]\).
+The environment, which the robot operates in, is 
+a \(xy\)-plane bounded within \([-3, 3] \times [-3, 3]\).
 There are two circular obstacles:
-Obstacle \( C_1 \) is centered at \((-2, -2)\) with a radius of 0.5.
-Obstacle \( C_2 \) is centered at \((1, 2)\) with a radius of 0.5.
+Obstacle \( C_1 \) centered at \((-2, -2)\) with a radius of 0.5.
+Obstacle \( C_2 \) centered at \((1, 2)\) with a radius of 0.5.
 Denote the free space:
 \[ \mathcal{F} = [-3, 3]^2 \setminus (C_1 \cup C_2) \]
 
 The reference trajectory is a sequence of positions and orientations:
-\[ r_t \in [-3,3] \times [-3,3] \times [-\pi, \pi)\]
-Note that reference trajectory may overlap with obstacles.
-And the control policy need to avoid the obstacles.
+\[ r_t \in [-3,3] \times [-3,3] \times [-\pi, \pi), t < \mathcal{T}\]
+with period $\mathcal{T}$ and may overlap with obstacles.
 
 \subsection{Motion Model}
 The motion model of the differential-drive robot is defined as follows. 
 The robot's state at time \( t \), denoted by 
-\( {x}_t = ({p}_t, \theta_t) \), 
-consists of its position \( {p}_t \in [-3,3]^2 \) and orientation \( \theta_t \in \mathbb{R} \). 
+\( {x}_t = [\begin{matrix}{p}_t & \theta_t\end{matrix}]^T \), 
+consists of position \( {p}_t \in \mathcal{F} \) and orientation \( \theta_t \in \mathbb{R} \). 
 The control input \( {u}_t = (v_t, \omega_t) \) 
 consists of the linear velocity \( v_t \in [0,1] \) and 
 angular velocity \( \omega_t \in [-1,1] \). 
-The discrete-time kinematic model, 
-derived from Euler discretization with a time interval \( \Delta > 0 \), is:
+The motion model, with time interval \( \Delta > 0 \), is:
 
 \[
 {x}_{t+1} = {f}({x}_t, {u}_t, {w}_t) = {x}_t + {G}({x}_t) {u}_t + {w}_t
@@ -82,20 +79,21 @@ and motion noise \( {w}_t \sim \mathcal{N}(0, \Sigma) \).
 
 \subsection{Receding-horizon CEC}
 CEC is a suboptimal open-loop-feedback control scheme.
-It, at each stage, applies the control that would be optimal,
+At each stage, it applies the control that would be optimal,
 if the noise variable $w_t$ were realized at their expected values. 
 The main advantage of CEC is that it reduces 
 a stochastic optimal control problem to a deterministic optimal control problem, 
-which can be solved more effectively. 
+which can be solved more efficiently. 
 
 In addition,
 receding-horizon CEC approximates infinite-horizon problem 
-by repeatedly solving the following discounted finite-horizon
-deterministic optimal control problem at each time step.
+by repeatedly solving a discounted finite-horizon
+deterministic optimal control problem, with look ahead steps $T$, at each time step.
 
 Formally, when given state $x_\tau$, 
 CEC solves following optimization problem to find control sequence $u_{\tau:\tau+T-1}$, 
-applies the first control $u_\tau$, then uses the realization of $x_{\tau+1}$ for next stage.
+applies the first control $u_\tau$. 
+At next stage, repeat this process with $x_{\tau+1}$.
 \[
 \begin{gathered}
 \min_{{u}_\tau, \ldots, {u}_{\tau+T-1}} 
@@ -134,8 +132,8 @@ x_{t}
 \right.
 \end{gathered}
 \]
-in which, $T$ is the look ahead steps, 
-$Q,q,R$ are loss function hyper-parameters.
+in which, $q$ is the terminal cost, 
+$Q,q,R$ are stage cost hyper-parameters.
 
 \subsection{Non-linear Programming (NLP)}
 An NLP program written in following standard form can be solved by an NLP solver.
@@ -152,11 +150,11 @@ where \( {U} = [{u}_\tau^\top, \ldots, {u}_{\tau+T-1}^\top]^\top \) and \( {E} =
 GPI is a powerful technique to approach 
 infinite horizon planing problem.
 The standard GPI repeats following two steps until converged:
-\subsubsection{policy evaluation} finds value function $V^{\pi}$ of a given policy $\pi$.
+\subsubsection{policy evaluation} try to find value function $V^{\pi}$ of a given policy $\pi$.
 \subsubsection{policy improvements} greedy improve the policy.
 
-To use GPI in this problem, discretization or parametrization of value function 
-are necessary for computers to handle contiguous state space.
+To use GPI in contiguous state space, 
+discretization or parametrization of value function are necessary.
 
 \subsection{Q-value iteration}
 Q-value iteration is an equivalent variation of general policy iteration.
@@ -219,12 +217,8 @@ Term $A$ and $B$ regulates the position and orientation error
 between states and reference trajectory.
 Term $C$ regulates large controls.
 
-Term $D$ is an added smoothing term in practice.
-Because of the discounted formulation, NLP solver may
-delaying controls into future as the quadric term $C$ is exponentially decayed in time,
-leads to small controls at $\tau$ state.
-Meanwhile, only $u_\tau$ is actually used and $u_{\tau+1:}$ are discarded.
-Term $D$ is added to avoid such behavior. 
+Term $D$ is an added smoothing term.
+It regulates the controls' change rate to avoid sharp turns.
 Its impact is further discussed in Results section.
 
 \subsubsection{constrains}
@@ -232,7 +226,7 @@ Its impact is further discussed in Results section.
 \begin{gathered}
 \begin{aligned}
 h(U, x_\tau)&=\left[ \begin{matrix}p_{\tau +1}&\cdots &p_{\tau +T-1}\\ \| p_{t}-c_{1}\|_{2} &\cdots &\| p_{\tau +T-1}-c_{1}\|_{2} \\ \| p_{t}-c_{2}\|_{2} &\cdots &\| p_{\tau +T-1}-c_{2}\|_2 \end{matrix}  \right] \\ 
-h_{lb}&=\left[ \begin{matrix}\left[ \begin{gathered}-3\\ -3 \end{gathered}  \right] &\cdots &\left[ \begin{gathered}-3\\ -3 \end{gathered}  \right] \\ c_{1}.r&\cdots &c_{1}.r\\ c_{2}.r&\cdots &c_{2}.r\end{matrix}  \right] \\ 
+h_{lb}&=\left[ \begin{matrix}\left[ \begin{gathered}-3\\ -3 \end{gathered}  \right] &\cdots &\left[ \begin{gathered}-3\\ -3 \end{gathered}  \right] \\ c_{1}.radius&\cdots &c_{1}.radius\\ c_{2}.radius&\cdots &c_{2}.radius\end{matrix}  \right] \\ 
 h_{ub}&=\left[ \begin{matrix}\left[ \begin{gathered} 3\\  3 \end{gathered}  \right] &\cdots &\left[ \begin{gathered} 3\\  3 \end{gathered}  \right] \\ \infty&\cdots &\infty\\ \infty&\cdots &\infty\end{matrix}  \right] 
 \end{aligned} \\
 \end{gathered} 
@@ -242,11 +236,7 @@ in which,
 =f(x_{t-1},u_{t-1}) \)
 
 Similar to objective function, the motion model $f$ is hardcoded into the constrain function.
-The constrains enforces the states $x_t$ to be within the free space $\mathcal{F}$.
-
-Since the objective function takes periodic $\cos$ over $\tilde{\theta}$,
-the orientation of state \textbf{does not} need to 
-normalize into the reference trajectory's orientation space $[-\pi, \pi)$.
+The constrains enforce states $x_{\tau+1:\tau+T-1}$ to be within the free space $\mathcal{F}$.
 
 \subsubsection{formation considerations}
 Converting CEC into the above NLP without explicitly introducing 
@@ -254,14 +244,16 @@ optimization variable on state $x_t$ or error states $e_t$ has several benefits.
 \begin{itemize}
     \item avoids motion model constrains in following form: 
     \[-\epsilon < x_{t+1} - f(x_t, u_t) <\epsilon\]
-    The motion model is now part of the objective and constrain functions.
-    \item avoids implementing error state motion model,
-    \item avoids boundary and collision check on error states $e_t$ 
+    \item avoids implementing error state motion model.
+    \item avoids boundary and collision check on error states $e_t$.
     \end{itemize}
 
-The formulation also skipped the stage cost term.
-For a conventional stage cost $q(x_{\tau+T}) = \gamma^T (loss_e(e_{\tau+T}) + loss_u(u_{\tau+T}))$,
-it would have the same effect of increasing look ahead step by 1, thus skipped.
+The formulation does not normalize the orientation $\theta_t$ into the reference trajectory's orientation space $[-\pi, \pi)$,
+as the objective function has taken periodic $\cos$ over $\tilde{\theta}$.
+
+The formulation also skipped stage cost.
+A conventional stage cost $q(x_{\tau+T}) = \gamma^T (loss_e(e_{\tau+T}) + loss_u(u_{\tau+T}))$
+would have the same effect of increasing look ahead step by 1, thus skipped.
 
 \subsubsection{hyper-parameter tuning}
 In practice, following hyper-parameters produced best results:
@@ -283,7 +275,7 @@ making GPUs the ideal hardware to leverage.
 In this project, 
 a GPU-accelerated batch Q-value iteration is implemented with PyTorch.
 
-\subsubsection{state space discretization}
+\subsubsection{state space and control space discretization}
 The orientation is first normalized into $[-\pi,\pi)$.
 The state space $\mathcal{X} = [-3,3]^2\times[-\pi,\pi)$ is
 discretized into $(nx, ny, nth)$ equally-spaced points in each dimension.
@@ -299,23 +291,31 @@ is discretized and approximated using the following method:
 
 \begin{itemize}
     \item For all discrete state \( x \) and control \( u \),
-    a neighborhood with $K$ states, denote as \( \{x'_{k} |k < K\}\), 
-    around the mean \(x' = f(x, u, 0) \) in the discretized space 
+    a neighborhood with $K$ discrete states, denote as \( \{x'_{k} |k < K\}\), 
+    around the next state's expectation, \(x' = f(x, u, 0) \)
     is considered possible next states.
-    \item  The likelihood of transitioning to \( x'_{0:K-1} \)
-    is evaluated using the Gaussian distribution \( N(x', \Sigma) \).
-    \item For $x'_k$, that are out of boundary and/or causing collision, 
-    their coordinates are clamped and probabilities set to 0.
-    \item The transition probability distribution is then normalized within 
-    the neighborhood, so that  \(\sum_k p(x'_{k}) = 1\) 
+    \item The neighborhood selection make sure the positions $p'_k$ are clamped between $[-3,3]^2$
+    and the orientations $\theta'_k$ are wrapped around. 
+    \item  The likelihood of transitioning into \( x'_k \)
+    is evaluated using Gaussian distribution
+    \footnote{The motion model $f$ is not linear, but we will assume it is, and approximated 
+    the result distribution with Gaussian distribution.}
+    \( N(x', \Sigma) \).
+    For $x'_k$, that caused collision with $C_1, C_2$, 
+    their probabilities are set to 0.
+    \item The transition probability distribution is normalized 
+    \footnote{The torch normalization function will correctly return all zero if the input is all zero}
+    within the neighborhood, so that \(\sum_k Prob(x'_{k}) = 1\).
 \end{itemize}
 
-The discretization of $f$ can be effectively computed with PyTorch batch and broad cast operations.
+The discretization of $f$ can be efficiently computed with PyTorch batch and broad cast operations.
 The results are saved in two tensors:
-transition tensor, $P$ with shape $(K, nx, ny, nth, nv, nw, 3)$, stores the \textbf{indices} of neighborhood points $x'_k$;
-transition probabilities tensor, $P_p$ with shape $(K, nx, ny, ,nth, nv, nw)$, stores their probabilities.
+transition tensor $P$ with shape $(K, nx, ny, nth, nv, nw, 3)$ 
+stores the \textbf{indices} of neighborhood points $x'_k$;
+transition probabilities tensor $P_p$ with shape $(K, nx, ny, ,nth, nv, nw)$ 
+stores their probabilities.
 
-Note the transition tensors are discretization of $f$, thus is \textbf{time invariant}.
+The transition tensors are discretization of $f$, thus is \textbf{time invariant}.
 
 \subsubsection{stage cost}
 $$
@@ -329,24 +329,24 @@ s.t. \ \left[ \begin{gathered}\tilde{p}_{t}\\ \tilde{\theta}_{t} \end{gathered} 
 \end{aligned}
 $$
 
-The stage cost can be discretized and save to tensor $L$ with shaped $(nt, nx, ny, nth, nv, nw)$.
+The stage cost can be discretized and saved to tensor $L$ with shape $(nt, nx, ny, nth, nv, nw)$.
 For those states that are out of boundary and causing collision, 
-their stage costs are set to $\infty$
-
-Note the stage cost dependents on the reference trajectory and is \textbf{time variant}.
+their stage costs are set to $\infty$.
+The stage cost dependents on the reference trajectory and is \textbf{time variant}.
 
 \subsubsection{Q-value iteration and policy extraction}
 implements Algorithm \ref{algo:gpi} using batch operations.
+It first computes current V-values $V = \min_{\text{dim}=[-2,-1]} Q$.
 The expectation $E_{x' \sim p_f}$ is approximated by the weighted sum of 
-neighbors' V-value at next time step, $t' = (t+1)\mod nt$.
+neighborhoods' V-values at next time step $t' = (t+1)\mod nt$.
 Q values are stored in tensor $Q$, with shape $(nt, nx, ny, nth, nv, nw)$.
 
 Q value iteration is executed until $\|Q_k - Q_{k-1}\| < \delta$.
-Then the policy $\pi$ is extract from taking $\arg\min$ over the last two dimensions of $Q$
+Then the policy $\pi$ is extracted: $\pi = \arg\min_{\text{dim}=[-2,-1]} Q$.
 
 \subsubsection{implementation considerations}
 Similar to CEC approach, 
-the standard states and motion model $f$ is discretized instead of the error states.
+standard states and motion model $f$ is discretized instead of error states.
 The primary considerations is memory consumption.
 The standard motion model need to discrete $6*6*2\pi*1*2$ hyper-volume 
 but the error motion model need to discrete $12*12*2\pi*1*2$ hyper-volume which is 4 times greater.
@@ -368,20 +368,22 @@ K=1&\delta = 10\end{array}
 
 Because the discretization is relatively sparse compare to the noise variance,
 most of the probability weight is concentrated on one or two points in the neighborhood.
-A 7-point spindle neighborhood ($K=7$) would consume $7\times$ memory 
+A 7-point spindle neighborhood ($K=7$) would have $7\times$ peak memory consumption
+\footnote{A non-batch or subdivided batch Q iteration would have smaller peak memory consumption, 
+but due to time limits and left for future work.}
 compare to $K=1$ neighborhood in batch Q iteration,
-which is unfortunately exceeded GPU GRAM capacity.
+which unfortunately exceeded my GPU GRAM capacity.
 Thus the nearest point neighborhood ($K=1$) is used.
 
 Those infinite stage costs are set to a large number of $10^{10}$, 
-as infinity cause \texttt{nan} in norm computation.
-
-With $\delta=10$, Q-value iteration usually take around 50 iterations.
+as infinity cause \texttt{nan} in computation.
+With $\delta=10$, Q-value iteration takes around 50 iterations to converge.
 
 \section{Results}
+Best results of using P-controller CEC, and GPI are present in Figure \ref{fig:best}.
+Both CEC and GPI are able to track the reference trajectory and avoid obstacles.
 Full animated results can be found at \texttt{fig/*.gif}.
 
-Best results of using P-controller CEC, and GPI are present in Figure \ref{fig:best}.
 \begin{figure*}
     \centering
     \begin{subfigure}[b]{0.3\textwidth}
@@ -401,24 +403,24 @@ Best results of using P-controller CEC, and GPI are present in Figure \ref{fig:b
         \caption{GPI}
         \label{fig:gpi}
     \end{subfigure}
-    \caption{Best results from P-controller, CEC, GPI}
+    \caption{Best results from CEC, GPI}
     \label{fig:best}
 \end{figure*}
 
 \subsection{CEC}
 This section compares results produced by different hyper-parameters of CEC.
 
-\subsubsection{look ahead steps $T$}
-Figure \ref{fig:T} shows the effect of changing $T$.
-Compare to $T=5$ (Figure \ref{fig:T5})
-For a too small $T=1$ (Figure \ref{fig:T1}), the policy won't be able to avoid obstacles in advance.
-For a too large $T=20$ (Figure \ref{fig:T1}), the solver converged to a different local optimal, 
+\subsubsection{look ahead steps}
+Figure \ref{fig:Ts} shows the effect of changing $T$.
+Compare to $T=5$ (Figure \ref{fig:T5}),
+Too small $T=1$ (Figure \ref{fig:T1}) caused the policy can't avoid obstacles in advance.
+Too large $T=20$ (Figure \ref{fig:T1}) caused the solver converged to a different optimal, 
 it first bypassed the obstacles then chase the trajectory. 
 This could due the choose of $\gamma = 0.9$, 
 the solver didn't weight the near stages enough.
 
-In addition, larger $T$ would cause CEC much slower to solve. 
-$T=25$ is around the limit of finding next control just-in-time on my machine.
+In addition, larger $T$ cause CEC slower to solve. 
+$T=25$ is around the limit of finding next control in time on my machine.
 
 \begin{figure*}[h]
     \centering
@@ -440,13 +442,13 @@ $T=25$ is around the limit of finding next control just-in-time on my machine.
         \label{fig:T20}
     \end{subfigure}
     \caption{look ahead steps}
-    \label{fig:T}
+    \label{fig:Ts}
 \end{figure*}
 
-\subsubsection{smoothing term: $r$}
+\subsubsection{smoothing term}
 In the CEC formation, a smoothing term $D$ is added.
 Figure \ref{fig:r} shows the result without smoothing and with $r=1$ compare to $r=0.05$ at \ref{fig:r005}.
-With the smoothing term, the turns are less sharp, and the trajectory is more smooth.
+With the smoothing term, the turns are less sharp.
 For a different less smooth reference trajectory, such smoothing term could become useful.
 
 \begin{figure*}[h]
@@ -474,12 +476,10 @@ For a different less smooth reference trajectory, such smoothing term could beco
 
 \subsubsection{less important: $\gamma, q$}
 Figure \ref{fig:p} shows two less important parameters.
-the non-discounted result ($\gamma = 1$ at Figure \ref{fig:gamma1}) is really close to the baseline result with $\gamma = 0.9$,
-showing when $T=5$, the discounted factor $\gamma$ is less important.
-
+Non-discounted result ($\gamma = 1$ at Figure \ref{fig:gamma1}) is really close to the baseline result with $\gamma = 0.9$.
 Figure \ref{fig:q0} shows the orientation term B is also less import in this project,
-because the orientation is the tangent direction of the motion model and the reference trajectory.
-When there is degree of orientation freedom in motion model, term B would be more significant.
+because the reference orientation is always the tangent direction of reference trajectory.
+For a different motion model with degree of freedom in orientation, term B would be more significant.
 
 \begin{figure*}[h]
     \centering
@@ -509,5 +509,5 @@ Figure \ref{fig:gpi} shows the result of optimal policy extracted from Q-value i
 Compare to CEC results, it is clear that due to discretization granularity 
 the GPI's control is less refined. However, the advantage of GPI is it online runtime.
 Only one table lookup can decide the current control, which can be significant in 
-latency sensitive and/or small time interval applications.
+latency sensitive and small time interval applications.
 \end{document}

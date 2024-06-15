@@ -17,7 +17,7 @@ To run GPI:
 python3 main.py gpi
 ```
 Note: GPI uses batch distribution, which is not supported by Apple MPS. Not sure if Torch-CPU supports. 
-Prefer using Torch-CUDA.
+Prefer using Torch-CUDA with 24G of GRAM, you may edit gpi_config in main.py to smaller memory consumption.
 
 ## Starter code
 ### 1. main.py
