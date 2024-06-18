@@ -301,8 +301,6 @@ is discretized and approximated using the following method:
     \footnote{The motion model $f$ is not linear, but we will assume it is, and approximated 
     the result distribution with Gaussian distribution.}
     \( N(x', \Sigma) \).
-    For $x'_k$, that caused collision with $C_1, C_2$, 
-    their probabilities are set to 0.
     \item The transition probability distribution is normalized 
     \footnote{The torch normalization function will correctly return all zero if the input is all zero}
     within the neighborhood, so that \(\sum_k Prob(x'_{k}) = 1\).
@@ -330,7 +328,7 @@ s.t. \ \left[ \begin{gathered}\tilde{p}_{t}\\ \tilde{\theta}_{t} \end{gathered} 
 $$
 
 The stage cost can be discretized and saved to tensor $L$ with shape $(nt, nx, ny, nth, nv, nw)$.
-For those states that are out of boundary and causing collision, 
+For those states that are on the boundary and causing collision, 
 their stage costs are set to $\infty$.
 The stage cost dependents on the reference trajectory and is \textbf{time variant}.
 

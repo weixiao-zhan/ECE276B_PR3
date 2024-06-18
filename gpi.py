@@ -200,15 +200,6 @@ class GPI:
 
         probabilities = dist.log_prob(neighbor_states).exp().to(self.config.dtype)
 
-        # collision mask
-        for i in range(self.config.obstacles.shape[0]):
-            r = torch.norm(neighbor_states[...,:2] - self.config.obstacles[i,:2], p=2, dim=-1)
-            # print("r", r.shape)
-            mask = r < self.config.obstacles[i,2]
-            # print("collision mask", mask.shape)
-            probabilities[mask] = 0
-        print("probabilities", probabilities.shape, self.check_nan(probabilities)) 
-
         # # Normalize probabilities
         normalized_probabilities = torch.nn.functional.normalize(probabilities, p=1, dim=0)
         # print("normalized_probabilities", normalized_probabilities.shape, self.check_nan(normalized_probabilities))
